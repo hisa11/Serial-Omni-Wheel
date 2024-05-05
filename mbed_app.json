@@ -1,0 +1,18 @@
+{
+    "config": {
+      "main-stack-size": {
+        "value": 8192
+      },
+      "target_overrides": {
+        "NUCLEO_F446RE": {
+          "main-stack-size": {
+            "value": 16384
+          },
+          "target.macros_add": [
+            "MBED_CONF_TARGET_STDIO_UART_TX=D8",
+            "MBED_CONF_TARGET_STDIO_UART_RX=D2"
+          ]
+        }
+      }
+    }
+}
