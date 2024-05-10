@@ -87,17 +87,17 @@ int main()
             // 数字を使って何かをする（ここでは単にPCに出力）
             printf("Rz: %d\n", value_z);
         }
-        pwm0[0] = -(value_y - value_x) + value_z;
-        pwm0[1] = -(value_y + value_x) + value_z;
-        pwm0[2] = -value_y + value_x + value_z;
-        pwm0[3] = -(-value_y - value_x) + value_z;
+        pwm0[0] = -(value_y + value_x) + value_z;
+        pwm0[1] = -(value_y - value_x) - value_z;
+        pwm0[2] = -value_y - value_x - value_z;
+        pwm0[3] = -(-value_y + value_x) - value_z;
 
         // pwm0[0] = -value_y + value_x　+ value_z;
         // pwm0[1] = -value_y - value_x　+ value_z;
         // pwm0[2] = -value_y + value_x　+ value_z;
         // pwm0[3] = value_y + value_x　+ value_z;
 
-        CANMessage msg0(1, (const uint8_t *)pwm0, 8);
+        CANMessage msg0(3, (const uint8_t *)pwm0, 8);
         can.write(msg0);
 
         // ループの最後でバッファをクリアします
