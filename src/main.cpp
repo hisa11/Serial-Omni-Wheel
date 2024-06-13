@@ -1,106 +1,54 @@
 #include "mbed.h"
-
-BufferedSerial pc(USBTX, USBRX, 250000); // Serial communication object
-DigitalOut led3(D8);                     // LED object
-DigitalOut led(D9);                      // LED object
-DigitalOut led2(D10);                    // LED object
-int value_x = 0;
-int value_y = 0;
-int value_z = 0;
-
-CANMessage msg;                  // CAN message object
-CAN can{PA_11, PA_12, (int)1e6}; // CAN communication object
-int16_t pwm0[4] = {0, 0, 0, 0};  // モタドラ1
-
-// '|'が受け取られるまでデータをバッファに追加する関数
-void readUntilPipe(char *output_buf, int output_buf_size)
+#include "firstpenguin.hpp"
+constexpr uint32_t can_id = 35;
+BufferedSerial pc(USBTX, USBRX, 250000); // パソコンとのシリアル通信
+CANMessage msg;
+CAN can(PA_11, PA_12, (int)1e6);
+CAN can2(PB_12, PB_13, (int)1e6);
+int16_t pwm0[4] = {0, 0, 0, 0}; // モタドラ1
+Timer timer;
+FirstPenguin penguin{can_id, can};
+int speed = 8000;
+int main()//////////////////////////////////////////////////////////正転w, 後転s, 停止x, 加速o, 減速p, 速度表示y
 {
-    char buf[20];
-    int output_buf_index = 0;
-
+printf("prpgram start\n");
     while (1)
     {
-        if (pc.readable())
+        char buf;
+        if(pc.readable())
         {
-            ssize_t num = pc.read(buf, sizeof(buf) - 1); // -1 to leave space for null terminator
-            buf[num] = '\0';
-
-            for (int i = 0; i < num; i++)
+            pc.read(&buf, sizeof(buf));
+            if (buf == 'W' || buf == 'w') //
             {
-                if (buf[i] == '|')
-                {
-                    output_buf[output_buf_index] = '\0';
-                    return;
-                }
-                else if (buf[i] != '\n' && output_buf_index < output_buf_size - 1)
-                { // 改行文字を無視します
-                    output_buf[output_buf_index++] = buf[i];
-                }
+                penguin.pwm[0] = -speed;
+                penguin.pwm[1] = speed;
+            }
+            else if (buf == 'S' || buf == 's') //
+            {
+                penguin.pwm[0] = speed;
+                penguin.pwm[1] = -speed;
+            }
+            else if (buf == 'X' || buf == 'x') // 停止
+            {
+                penguin.pwm[0] = 0; // 停止の処理を追加
+                penguin.pwm[1] = 0; // 停止の処理を追加
+            }
+            if (buf == 'o' || buf == 'O') //
+            {
+                speed += 1000;
+            }
+            else if (buf == 'P' || buf == 'p') //
+            {
+                speed -= 1000;
+            }else if(buf == 'I' || buf == 'i') //
+            {
+                speed += 500;
+            }
+            if (buf == 'y' || buf == 'Y') //
+            {
+                printf("speed = %d\n", speed);
             }
         }
-        if (output_buf_index >= output_buf_size - 1) // Prevent buffer overflow
-        {
-            output_buf[output_buf_index] = '\0';
-            return;
-        }
-    }
-}
-
-int main()
-{
-    char output_buf[20]; // 出力用のバッファを作成します
-
-    while (1)
-    {
-        readUntilPipe(output_buf, sizeof(output_buf)); // '|'が受け取られるまでデータを読み込みます
-
-        if (strncmp(output_buf, "L3_x:", 5) == 0) // "R3_x:"という文字列で始まるかどうかを確認します
-        {
-            char *ptr = output_buf + 5; // "R3_x:"の後の文字列の先頭ポインタを取得
-
-            // 数字部分を読み取る
-            value_x = atoi(ptr);
-
-         
-            
-
-            // 数字を使って何かをする（ここでは単にPCに出力）
-            printf("Rx: %d\n", value_x);
-        }
-        else if (strncmp(output_buf, "L3_y:", 5) == 0) // "R3_x:"という文字列で始まるかどうかを確認します
-        {
-            char *ptr = output_buf + 5; // "R3_x:"の後の文字列の先頭ポインタを取得
-
-            // 数字部分を読み取る
-            value_y = atoi(ptr);
-
-            // 数字を使って何かをする（ここでは単にPCに出力）
-            printf("Ry: %d\n", value_y);
-        }
-        else if (strncmp(output_buf, "R3_x:", 5) == 0) // "R3_x:"という文字列で始まるかどうかを確認します
-        {
-            char *ptr = output_buf + 5; // "R3_x:"の後の文字列の先頭ポインタを取得
-
-            // 数字部分を読み取る
-            value_z = atoi(ptr);
-
-            // 数字を使って何かをする（ここでは単にPCに出力）
-            printf("Rz: %d\n", value_z);
-        }
-        pwm0[0] = -(value_y + value_x) + value_z;
-        pwm0[1] = -(value_y - value_x) - value_z;
-        pwm0[2] = -value_y - value_x - value_z;
-        pwm0[3] = -(-value_y + value_x) - value_z;
-
-        // pwm0[0] = -value_y + value_x　+ value_z;
-        // pwm0[1] = -value_y - value_x　+ value_z;
-        // pwm0[2] = -value_y + value_x　+ value_z;
-        // pwm0[3] = value_y + value_x　+ value_z;
-
-        CANMessage msg0(3, (const uint8_t *)pwm0, 8);
-        can.write(msg0);
-
-        // ループの最後でバッファをクリアします
-        memset(output_buf, 0, sizeof(output_buf));
+        penguin.send();
     }
 }
